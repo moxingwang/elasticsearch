@@ -86,7 +86,7 @@ public class ElasticsearchTest1 {
     @Test
     public void upsert() throws IOException {
         //https://www.elastic.co/guide/en/elasticsearch/client/java-rest/6.4/java-rest-high-document-update.html
-        UpdateRequest updateRequest = new UpdateRequest("trade-order-test", "data", "1");
+        UpdateRequest updateRequest = new UpdateRequest("trade-order-test", "data", "3");
 
         String strJson = "{\n" +
                 "  \"name\": \"mo\",\n" +
