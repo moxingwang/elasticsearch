@@ -1,5 +1,6 @@
 package top.moxingwang.elasticsearch;
 
+import com.alibaba.fastjson.JSON;
 import org.apache.http.HttpHost;
 import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.UsernamePasswordCredentials;
@@ -13,24 +14,31 @@ import org.elasticsearch.client.RequestOptions;
 import org.elasticsearch.client.RestClient;
 import org.elasticsearch.client.RestClientBuilder;
 import org.elasticsearch.client.RestHighLevelClient;
+import org.elasticsearch.common.xcontent.XContentType;
+import org.elasticsearch.index.query.BoolQueryBuilder;
+import org.elasticsearch.index.query.QueryBuilders;
 import org.elasticsearch.rest.RestStatus;
 import org.elasticsearch.search.SearchHit;
 import org.elasticsearch.search.SearchHits;
 import org.elasticsearch.search.builder.SearchSourceBuilder;
+import org.junit.Before;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Map;
+
 
 /**
  * EsTest1
  */
 public class ElasticsearchTest1 {
+    Logger logger = LoggerFactory.getLogger(ElasticsearchTest1.class);
 
-    @Test
-    public void t1() throws IOException {
+    RestHighLevelClient client;
+
+    @Before
+    public void init() {
         final CredentialsProvider credentialsProvider = new BasicCredentialsProvider();
         credentialsProvider.setCredentials(AuthScope.ANY, new UsernamePasswordCredentials("trade", "trade12345"));
 
@@ -42,101 +50,65 @@ public class ElasticsearchTest1 {
                     }
                 });
 
-        RestHighLevelClient client = new RestHighLevelClient(restClientBuilder);
+        client = new RestHighLevelClient(restClientBuilder);
+    }
 
-        // boolean response = client.ping(RequestOptions.DEFAULT);
-        /*{
-            ClusterHealthRequest request = new ClusterHealthRequest();
-            ClusterHealthResponse response = client.cluster().health(request, RequestOptions.DEFAULT);
-        }*/
+    @Test
+    public void query() throws IOException {
+        SearchRequest searchRequest = new SearchRequest("trade-order-sales_0");
+        searchRequest.types("type");
 
-        /*{
-            IndexRequest indexRequest = new IndexRequest("trade-order-test", "type");
+        SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
+        searchSourceBuilder.from(1);
+        searchSourceBuilder.size(10);
 
-            indexRequest.source("{\n" +
-                    "  \"_doc\": {\n" +
-                    "    \"properties\": {\n" +
-                    "      \"message\": {\n" +
-                    "        \"type\": \"text\"\n" +
-                    "      }\n" +
-                    "    }\n" +
-                    "  }\n" +
-                    "}", XContentType.JSON);
-            try {
-                IndexResponse indexResponse = client.index(indexRequest, RequestOptions.DEFAULT);
-                System.out.println(indexResponse);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }*/
+        searchRequest.source(searchSourceBuilder);
+        BoolQueryBuilder queryBuilder = QueryBuilders.boolQuery()
+                .must(QueryBuilders.termQuery("deleteFlag", "0"));
+        searchSourceBuilder.query(queryBuilder);
 
-        {
-            SearchRequest searchRequest = new SearchRequest("trade-order-sales_0");
-            searchRequest.types("type");
 
-            SearchResponse searchResponse = client.search(searchRequest, RequestOptions.DEFAULT);
-            System.out.println(searchRequest);
+        SearchResponse searchResponse = client.search(searchRequest, RequestOptions.DEFAULT);
 
+        SearchHits hits = searchResponse.getHits();
+        long totalHits = hits.getTotalHits();
+        float maxScore = hits.getMaxScore();
+
+        logger.info("命中数量{}最大分值{}", totalHits, maxScore);
+
+        SearchHit[] searchHits = hits.getHits();
+        for (SearchHit searchHit : searchHits) {
+            logger.info("获取到数据ID{},详细数据{}", searchHit.getId(), JSON.toJSONString(searchHit.getSourceAsMap()));
         }
+    }
 
-        {
-            SearchRequest searchRequest = new SearchRequest("trade-order-sales_0");
-            searchRequest.types("type");
+    @Test
+    public void upsert() throws IOException {
+        //https://www.elastic.co/guide/en/elasticsearch/client/java-rest/6.4/java-rest-high-document-update.html
+        UpdateRequest updateRequest = new UpdateRequest("trade-order-test", "data", "2");
 
-            SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
-            searchSourceBuilder.from(1);
-            searchSourceBuilder.size(10);
+        String strJson = "{\n" +
+                "  \"name\": \"mo\",\n" +
+                "  \"cluster_name\": \"my-application\",\n" +
+                "  \"cluster_uuid\": \"FBG-jnLfS4KD3ANeXOsTNg\",\n" +
+                "  \"version\": {\n" +
+                "    \"number\": \"7.2.0\",\n" +
+                "    \"build_flavor\": \"default\",\n" +
+                "    \"build_type\": \"tar\",\n" +
+                "    \"build_hash\": \"508c38a\",\n" +
+                "    \"build_date\": \"2019-06-20T15:54:18.811730Z\",\n" +
+                "    \"build_snapshot\": false,\n" +
+                "    \"lucene_version\": \"8.0.0\",\n" +
+                "    \"minimum_wire_compatibility_version\": \"6.8.0\",\n" +
+                "    \"minimum_index_compatibility_version\": \"6.0.0-beta1\"\n" +
+                "  },\n" +
+                "  \"tagline\": \"You Know, for Search\"\n" +
+                "}";
 
-            searchRequest.source(searchSourceBuilder);
+        updateRequest.doc(strJson, XContentType.JSON);
+        updateRequest.upsert(strJson, XContentType.JSON);
 
-
-            SearchResponse searchResponse = client.search(searchRequest, RequestOptions.DEFAULT);
-
-            SearchHits hits = searchResponse.getHits();
-            long totalHits = hits.getTotalHits();
-
-            float maxScore = hits.getMaxScore();
-
-            SearchHit[] searchHits = hits.getHits();
-
-            System.out.println(1);
-
-
-        }
-
-
-        {
-            //https://www.elastic.co/guide/en/elasticsearch/client/java-rest/6.4/java-rest-high-document-update.html
-
-            String jsonString = "{\"created\":\"2017-01-01\"}";
-            Map<String, Object> jsonMap = new HashMap<>();
-            jsonMap.put("updated", new Date());
-            jsonMap.put("reason", "daily update11111111111111111");
-            UpdateRequest updateRequest = new UpdateRequest("trade-order-test", "data", "2");
-
-            updateRequest.doc(jsonMap);
-            updateRequest.upsert(jsonMap);
-//            updateRequest.upsert(jsonString, XContentType.JSON);
-
-            RestStatus restStatus = client.update(updateRequest,RequestOptions.DEFAULT).status();
-            System.out.println(restStatus);
-
-           /* UpdateResponse updateResponse = client.prepareUpdate("trade-order-test", "type", 1)
-//                            .setVersionType(VersionType.FORCE)
-//                            .setVersion(System.currentTimeMillis())
-                    .setDoc("{}")
-                    .setDocAsUpsert(true)
-                    .execute()
-                    .actionGet();
-
-            if (updateResponse.isCreated()) {
-                logger.info("ES重入{}次执行创建{}", retry, afterTable.getId());
-            } else {
-                logger.info("ES重入{}次执行更新{}", retry, afterTable.getId());
-            }*/
-        }
-
-        System.out.println(1);
-
+        RestStatus restStatus = client.update(updateRequest, RequestOptions.DEFAULT).status();
+        System.out.println(restStatus);
     }
 }
