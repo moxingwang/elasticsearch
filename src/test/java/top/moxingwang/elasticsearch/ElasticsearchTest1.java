@@ -40,9 +40,10 @@ public class ElasticsearchTest1 {
     @Before
     public void init() {
         final CredentialsProvider credentialsProvider = new BasicCredentialsProvider();
-        credentialsProvider.setCredentials(AuthScope.ANY, new UsernamePasswordCredentials("trade", "trade12345"));
+        //配置x-pack需要认证的情况
+//        credentialsProvider.setCredentials(AuthScope.ANY, new UsernamePasswordCredentials("trade", "trade12345"));
 
-        RestClientBuilder restClientBuilder = RestClient.builder(new HttpHost("esuc.dev.rs.com", 19200))
+        RestClientBuilder restClientBuilder = RestClient.builder(new HttpHost("172.18.71.37", 9200))
                 .setHttpClientConfigCallback(new RestClientBuilder.HttpClientConfigCallback() {
                     @Override
                     public HttpAsyncClientBuilder customizeHttpClient(HttpAsyncClientBuilder httpClientBuilder) {
@@ -55,8 +56,8 @@ public class ElasticsearchTest1 {
 
     @Test
     public void query() throws IOException {
-        SearchRequest searchRequest = new SearchRequest("trade-order-sales_0");
-        searchRequest.types("type");
+        SearchRequest searchRequest = new SearchRequest("trade-order-test");
+        searchRequest.types("data");
 
         SearchSourceBuilder searchSourceBuilder = new SearchSourceBuilder();
         searchSourceBuilder.from(1);
@@ -64,7 +65,7 @@ public class ElasticsearchTest1 {
 
         searchRequest.source(searchSourceBuilder);
         BoolQueryBuilder queryBuilder = QueryBuilders.boolQuery()
-                .must(QueryBuilders.termQuery("deleteFlag", "0"));
+                .must(QueryBuilders.termQuery("name", "mo"));
         searchSourceBuilder.query(queryBuilder);
 
 
@@ -85,7 +86,7 @@ public class ElasticsearchTest1 {
     @Test
     public void upsert() throws IOException {
         //https://www.elastic.co/guide/en/elasticsearch/client/java-rest/6.4/java-rest-high-document-update.html
-        UpdateRequest updateRequest = new UpdateRequest("trade-order-test", "data", "2");
+        UpdateRequest updateRequest = new UpdateRequest("trade-order-test", "data", "1");
 
         String strJson = "{\n" +
                 "  \"name\": \"mo\",\n" +
